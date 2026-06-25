@@ -26,10 +26,10 @@ The current initial version only supports `mysql`.
 ## Usage
 
 ```bash
-npx seq-model-gen table:dlos_user bean:userBean path:./src/db
+npx seq-model-gen table:table_user bean:userBean path:./src/db
 ```
 
-Example output: `./src/db/dlos-user.js`
+Example output: `./src/db/table-user.js`
 
 If a model file for the same table already exists, the generator will only update the model column definition and `model.attributes`. Other custom sections such as `model.associate` will be preserved.
 
