@@ -1,6 +1,6 @@
 {
   "name": "seq-model-gen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI generator for generating sequelize model from database table schema",
   "license": "MIT",
   "bin": {
