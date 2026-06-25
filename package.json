@@ -1,0 +1,40 @@
+{
+  "name": "seq-model-gen",
+  "version": "1.0.0",
+  "description": "CLI generator for generating sequelize model from database table schema",
+  "license": "MIT",
+  "bin": {
+    "seq-model-gen": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "prd.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [
+    "sequelize",
+    "generator",
+    "cli",
+    "typescript",
+    "npm"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "mysql2": "^3.15.3",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
