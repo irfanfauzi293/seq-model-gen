@@ -3,7 +3,7 @@ const LENGTH_PATTERN = /\(([^)]+)\)/;
 export function mapColumnTypeToDataType(type: string): string {
   const normalizedType = type.trim().toUpperCase();
 
-  if (normalizedType.startsWith("TINYINT(1)") || normalizedType === "BOOLEAN") {
+  if (isBooleanLikeType(normalizedType)) {
     return "DataTypes.BOOLEAN";
   }
 
@@ -86,6 +86,15 @@ export function mapColumnTypeToDataType(type: string): string {
   }
 
   return "DataTypes.STRING";
+}
+
+function isBooleanLikeType(type: string): boolean {
+  return (
+    type === "BOOLEAN" ||
+    type === "BOOL" ||
+    type.startsWith("BIT(1)") ||
+    type.startsWith("TINYINT")
+  );
 }
 
 function withLength(prefix: string, type: string): string {

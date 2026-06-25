@@ -17,6 +17,7 @@ interface ColumnDefinition {
   allowNull: boolean;
   primaryKey?: boolean;
   autoIncrement?: boolean;
+  defaultValue?: unknown;
 }
 
 export interface GenerateModelResult {
@@ -188,21 +189,31 @@ function buildAttributesLiteral(tableDefinition: Record<string, ColumnDefinition
 }
 
 function buildFieldBlock(columnName: string, definition: ColumnDefinition): string {
-  const lines = [
-    `    ${columnName}: {`,
-    `      type: ${mapColumnTypeToDataType(definition.type)},`,
-    `      field: '${columnName}',`,
+  const propertyLines = [
+    `      type: ${mapColumnTypeToDataType(definition.type)}`,
+    `      field: '${columnName}'`,
     `      allowNull: ${definition.allowNull}`
   ];
 
   if (definition.primaryKey) {
-    lines.splice(2, 0, "      primaryKey: true,");
+    propertyLines.splice(1, 0, "      primaryKey: true");
   }
 
   if (definition.autoIncrement) {
     const insertIndex = definition.primaryKey ? 3 : 2;
-    lines.splice(insertIndex, 0, "      autoIncrement: true,");
+    propertyLines.splice(insertIndex, 0, "      autoIncrement: true");
   }
+
+  if (shouldIncludeDefaultValue(definition)) {
+    propertyLines.push(`      defaultValue: ${formatDefaultValue(definition.defaultValue, definition.type)}`);
+  }
+
+  const lines = [`    ${columnName}: {`];
+
+  propertyLines.forEach((line, index) => {
+    const suffix = index === propertyLines.length - 1 ? "" : ",";
+    lines.push(`${line}${suffix}`);
+  });
 
   lines.push("    }");
 
@@ -216,6 +227,8 @@ function hasNoTableChanges(
   const expectedFields = Object.keys(tableDefinition);
   const existingFields = extractFieldNames(existingSource);
   const existingAttributes = extractAttributeNames(existingSource);
+  const existingFieldBlock = extractDefinedFieldBlock(existingSource);
+  const expectedFieldBlock = buildFieldEntries(tableDefinition);
 
   if (!arraysEqual(existingFields, expectedFields)) {
     return false;
@@ -225,13 +238,91 @@ function hasNoTableChanges(
     return false;
   }
 
+  if (existingFieldBlock === null) {
+    return false;
+  }
+
+  if (normalizeComparableBlock(existingFieldBlock) !== normalizeComparableBlock(expectedFieldBlock)) {
+    return false;
+  }
+
   return true;
+}
+
+function shouldIncludeDefaultValue(definition: ColumnDefinition): boolean {
+  return definition.defaultValue !== undefined && definition.defaultValue !== null;
+}
+
+function formatDefaultValue(value: unknown, columnType: string): string {
+  if (isBooleanType(columnType)) {
+    if (value === 1 || value === "1" || value === true || value === "true" || value === "TRUE") {
+      return "true";
+    }
+
+    if (value === 0 || value === "0" || value === false || value === "false" || value === "FALSE") {
+      return "false";
+    }
+  }
+
+  if (typeof value === "number" || typeof value === "bigint") {
+    return String(value);
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  if (value instanceof Date) {
+    return `'${value.toISOString()}'`;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    const upper = normalized.toUpperCase();
+
+    if (upper === "CURRENT_TIMESTAMP") {
+      return "DataTypes.NOW";
+    }
+
+    if (upper === "NULL") {
+      return "null";
+    }
+
+    if (upper === "TRUE" || upper === "FALSE") {
+      return upper.toLowerCase();
+    }
+
+    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
+      return normalized;
+    }
+
+    return JSON.stringify(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function isBooleanType(type: string): boolean {
+  const normalizedType = type.trim().toUpperCase();
+
+  return (
+    normalizedType === "BOOLEAN" ||
+    normalizedType === "BOOL" ||
+    normalizedType.startsWith("BIT(1)") ||
+    normalizedType.startsWith("TINYINT")
+  );
 }
 
 function extractFieldNames(source: string): string[] {
   const matches = source.matchAll(/field:\s*['"`]([^'"`]+)['"`]/g);
 
   return Array.from(matches, (match) => match[1]);
+}
+
+function extractDefinedFieldBlock(source: string): string | null {
+  const match = source.match(/sequelize\.define\(\s*['"`][^'"`]+['"`]\s*,\s*\{([\s\S]*?)\}\s*,\s*\{/);
+
+  return match?.[1] ?? null;
 }
 
 function extractAttributeNames(source: string): string[] | null {
@@ -252,6 +343,10 @@ function arraysEqual(left: string[], right: string[]): boolean {
   }
 
   return left.every((value, index) => value === right[index]);
+}
+
+function normalizeComparableBlock(value: string): string {
+  return value.replace(/\r\n/g, "\n").trim();
 }
 
 function isFileNotFoundError(error: unknown): boolean {
